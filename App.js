@@ -1,13 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Image, Animated, Easing, Button } from 'react-native';
+import { StyleSheet, Text, View, Image, Animated, Easing, Button, Vibration } from 'react-native';
 import image1 from './media/logo.png';
 import { useFonts } from 'expo-font';
 import { useEffect, useState } from 'react';
-/* 
+import * as Location from 'expo-location';
+import LoadingGif from './media/twerk-dance.gif'
 
-style={styles.}
 
-*/
 const position = new Animated.ValueXY({x:0, y:250})
 
 this._animation1 = new Animated.Value(1);
@@ -27,6 +26,11 @@ export default function App() {
   const [data, setData] = useState([]);
 
   const [answer, setAnswer] = useState(0);
+
+  const [location, setLocation] = useState(null);
+  const [locationLoaded, setLocationLoaded] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
+
 
   Animated.sequence([
     Animated.timing(
@@ -59,6 +63,22 @@ export default function App() {
       .then((json) => setData(json))
       .catch((error) => console.error(error))
       .finally(() => setLoading(false));
+
+      (async () => {
+      
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setErrorMsg('Permission to access location was denied');
+          return;
+        }
+  
+        let location = await Location.getCurrentPositionAsync({});
+        setLocation(location);
+        console.log(errorMsg);
+        console.log(location);
+        setLocationLoaded(true);
+        Vibration.vibrate(1000);
+      })();  
   }, []);
 
   const fetchCoordinates = () => {
@@ -69,7 +89,9 @@ export default function App() {
     .finally(() => console.log(data));
     console.log(data.iss_position.latitude);
     console.log(data.iss_position.longitude);
-    setAnswer(distance(47.380400, data.iss_position.latitude, 8.541200, data.iss_position.longitude));
+    setAnswer(distance(location.coords.latitude, data.iss_position.latitude, location.coords.longitude, data.iss_position.longitude));
+    console.log(location.coords.latitude);
+    
  }
 
  function distance(lat1, lat2, lon1, lon2)
@@ -125,7 +147,15 @@ export default function App() {
     );
   }
 
-  if(mainLoaded){
+  if (mainLoaded && !locationLoaded){
+    return <View style={styles.container}>
+      
+      <Image style ={{width: "100%", height:"50%", }} source={LoadingGif}/>
+      <Text style={styles.loading}>Loading GPS...</Text>
+          </View>
+  }
+
+  if(mainLoaded && locationLoaded){
     return (
       <View style={styles.container}>
         <Animated.View style={styles.mainAnimation}>
@@ -181,6 +211,12 @@ const styles = StyleSheet.create({
     opacity: this._animation1,
   },
   logoName: {
+    fontFamily: 'Montserrat',
+    fontSize: 30,
+    color: 'aliceblue',
+    alignSelf: 'center',
+  },
+  loading: {
     fontFamily: 'Montserrat',
     fontSize: 30,
     color: 'aliceblue',
